@@ -1,0 +1,67 @@
+---
+# Install required packages for SMB
+- name: Install cifs-utils
+  ansible.builtin.apt:
+    name: cifs-utils
+    state: present
+
+# Create Linux groups for share access if specified
+- name: Ensure specific access groups exist
+  ansible.builtin.group:
+    name: "{{ item.gid }}"
+    state: present
+  loop: "{{ smb_shares | default([]) }}"
+  when: item.gid is defined and item.gid != '0' and item.gid != 'root'
+
+# Add specific users to the created groups
+- name: Add allowed users to mount groups
+  ansible.builtin.user:
+    name: "{{ item.1 }}"
+    groups: "{{ item.0.gid }}"
+    append: true
+  loop: "{{ smb_shares | subelements('allowed_users', skip_missing=True) }}"
+  loop_control:
+    label: >-
+      Adding user {{ item.1 }} to group {{ item.0.gid }}
+
+# Ensure secure directory for credentials exists
+- name: Create credentials directory
+  ansible.builtin.file:
+    path: /etc/samba/credentials
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+
+# Generate credentials files from template
+- name: Create SMB credentials files
+  ansible.builtin.template:
+    src: smb_creds.j2
+    dest: "/etc/samba/credentials/{{ item.name }}.cred"
+    mode: '0600'
+    owner: root
+    group: root
+  loop: "{{ smb_shares | default([]) }}"
+  no_log: true
+
+# Create target directories for mount points
+- name: Create mount points
+  ansible.builtin.file:
+    path: "{{ item.mount_point }}"
+    state: directory
+    mode: '0755'
+  loop: "{{ smb_shares | default([]) }}"
+
+- name: Mount SMB shares
+  ansible.posix.mount:
+    path: "{{ item.mount_point }}"
+    src: "{{ item.share_path }}"
+    fstype: cifs
+    opts: >-
+      credentials=/etc/samba/credentials/{{ item.name }}.cred,
+      uid={{ item.uid | default('0') }},
+      gid={{ item.gid | default('0') }},
+      dir_mode=0755,
+      file_mode=0644
+    state: mounted
+  loop: "{{ smb_shares | default([]) }}"

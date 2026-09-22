@@ -1,0 +1,24 @@
+---
+galaxy_info:
+  role_name: smb_mounts
+  namespace: ansible_suite
+  author: Jaroslav Korner
+  description: >-
+    Ansible role to mount SMB shares with credentials and
+    user/group access management
+  license: MIT
+  min_ansible_version: "2.10"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - focal
+        - jammy
+        - noble
+  galaxy_tags:
+    - samba
+    - smb
+    - mount
+    - cifs
+    - storage
+
+dependencies: []
