@@ -64,8 +64,8 @@
           'credentials=/etc/samba/credentials/' ~ item.name ~ '.cred',
           'uid=' ~ item.uid | default('0'),
           'gid=' ~ item.gid | default('0'),
-          'dir_mode=0755',
-          'file_mode=0644'
+          'dir_mode=' ~ item.dir_mode | default('0755'),
+          'file_mode=' ~ item.file_mode | default('0644')
         ] | join(',')
       }}
     state: mounted
