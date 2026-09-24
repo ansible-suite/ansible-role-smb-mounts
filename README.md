@@ -46,7 +46,7 @@ roles:
 ## Generate password hash for Ansible Vault
 
 ```bash
-ansible-vault encrypt_string 'SecretPassword123' --name 'smb_password'
+ansible-vault encrypt_string 'SecretPassword123' --name 'password'
 ```
 
 Generated output can be used in the `password` field of the `smb_shares` variable.

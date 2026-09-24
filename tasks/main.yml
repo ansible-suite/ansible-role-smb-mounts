@@ -20,6 +20,7 @@
     groups: "{{ item.0.gid }}"
     append: true
   loop: "{{ smb_shares | subelements('allowed_users', skip_missing=True) }}"
+  when: not ansible_check_mode
   loop_control:
     label: >-
       Adding user {{ item.1 }} to group {{ item.0.gid }}
@@ -58,10 +59,14 @@
     src: "{{ item.share_path }}"
     fstype: cifs
     opts: >-
-      credentials=/etc/samba/credentials/{{ item.name }}.cred,
-      uid={{ item.uid | default('0') }},
-      gid={{ item.gid | default('0') }},
-      dir_mode=0755,
-      file_mode=0644
+      {{
+        [
+          'credentials=/etc/samba/credentials/' ~ item.name ~ '.cred',
+          'uid=' ~ item.uid | default('0'),
+          'gid=' ~ item.gid | default('0'),
+          'dir_mode=0755',
+          'file_mode=0644'
+        ] | join(',')
+      }}
     state: mounted
   loop: "{{ smb_shares | default([]) }}"
