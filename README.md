@@ -1,8 +1,5 @@
 # Ansible Role: smb_mounts
 
-> [!warning]
-> Not tested!
-
 - [Ansible Role: smb\_mounts](#ansible-role-smb_mounts)
   - [Requirements](#requirements)
   - [Role Variables](#role-variables)
@@ -65,7 +62,7 @@ Generated output can be used in the `password` field of the `smb_shares` variabl
           $ANSIBLE_VAULT;1.1;AES256
           36393661...
   roles:
-    - smb_mounts
+    - ansible-suite.smb_mounts
 ```
 
 ## Example `group_vars`
