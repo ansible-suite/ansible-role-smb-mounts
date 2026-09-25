@@ -1,32 +1,30 @@
 ---
-# Install required packages for SMB
-- name: Install cifs-utils
+- name: Install required packages for SMB/CIFS
   ansible.builtin.apt:
     name: cifs-utils
     state: present
 
-# Create Linux groups for share access if specified
-- name: Ensure specific access groups exist
+- name: Ensure access groups for SMB shares exist
   ansible.builtin.group:
-    name: "{{ item.gid }}"
+    name: "{{ item.group | default(item.gid) }}"
+    gid: "{{ item.gid if (item.gid is defined and item.gid | string is regex('^[0-9]+$')) else (item.group_id | default(omit)) }}"
     state: present
   loop: "{{ smb_shares | default([]) }}"
-  when: item.gid is defined and item.gid != '0' and item.gid != 'root'
+  when:
+    - (item.group is defined and item.group not in ['root', '0']) or
+      (item.gid is defined and item.gid | string not in ['root', '0'] and item.gid | string is not regex('^[0-9]+$'))
 
-# Add specific users to the created groups
 - name: Add allowed users to mount groups
   ansible.builtin.user:
     name: "{{ item.1 }}"
-    groups: "{{ item.0.gid }}"
+    groups: "{{ item.0.group | default(item.0.gid) }}"
     append: true
   loop: "{{ smb_shares | subelements('allowed_users', skip_missing=True) }}"
   when: not ansible_check_mode
   loop_control:
-    label: >-
-      Adding user {{ item.1 }} to group {{ item.0.gid }}
+    label: "Adding user {{ item.1 }} to group {{ item.0.group | default(item.0.gid) }}"
 
-# Ensure secure directory for credentials exists
-- name: Create credentials directory
+- name: Ensure credentials directory exists
   ansible.builtin.file:
     path: /etc/samba/credentials
     state: directory
@@ -34,8 +32,7 @@
     owner: root
     group: root
 
-# Generate credentials files from template
-- name: Create SMB credentials files
+- name: Generate SMB credentials files from template
   ansible.builtin.template:
     src: smb_creds.j2
     dest: "/etc/samba/credentials/{{ item.name }}.cred"
@@ -45,7 +42,6 @@
   loop: "{{ smb_shares | default([]) }}"
   no_log: true
 
-# Create target directories for mount points
 - name: Create mount points
   ansible.builtin.file:
     path: "{{ item.mount_point }}"
@@ -53,30 +49,25 @@
     mode: '0755'
   loop: "{{ smb_shares | default([]) }}"
 
-- name: Test if the SMB server is reachable
-  ansible.builtin.command:
-    cmd: "ping -c 1 {{ item.share_path.split('/')[2] }}"
-  register: ping_result
-  ignore_errors: true
-  loop: "{{ smb_shares | default([]) }}"
-  loop_control:
-    label: >-
-      Pinging SMB server for share {{ item.name }} at {{ item.share_path.split('/')[2] }}
-
-- name: Mount SMB shares
+- name: Mount and configure SMB shares in fstab
   ansible.posix.mount:
     path: "{{ item.mount_point }}"
     src: "{{ item.share_path }}"
     fstype: cifs
     opts: >-
       {{
-        [
-          'credentials=/etc/samba/credentials/' ~ item.name ~ '.cred',
-          'uid=' ~ item.uid | default('0'),
-          'gid=' ~ item.gid | default('0'),
-          'dir_mode=' ~ item.dir_mode | default('0755'),
-          'file_mode=' ~ item.file_mode | default('0644')
-        ] | join(',')
+        (
+          [
+            'credentials=/etc/samba/credentials/' ~ item.name ~ '.cred',
+            'uid=' ~ (item.uid | default('0')),
+            'gid=' ~ (item.group | default(item.gid | default('0'))),
+            'dir_mode=' ~ (item.dir_mode | default('0755')),
+            'file_mode=' ~ (item.file_mode | default('0644')),
+            '_netdev',
+            'x-systemd.automount',
+            'nofail'
+          ] + (item.extra_opts | default([]))
+        ) | join(',')
       }}
     state: mounted
   loop: "{{ smb_shares | default([]) }}"
