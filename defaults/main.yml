@@ -4,6 +4,8 @@ smb_mode_opts:
   server_like:
     - _netdev
     - nofail
+    - x-systemd.after=network-online.target
+    - x-systemd.requires=network-online.target
 
   workstation:
     - _netdev
