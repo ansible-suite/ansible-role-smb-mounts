@@ -7,6 +7,8 @@
   - [Generate password hash for Ansible Vault](#generate-password-hash-for-ansible-vault)
   - [Example Playbook](#example-playbook)
   - [Example `group_vars`](#example-group_vars)
+    - [For Server-like](#for-server-like)
+    - [For Workstation](#for-workstation)
 
 ## Requirements
 
@@ -67,7 +69,48 @@ Generated output can be used in the `password` field of the `smb_shares` variabl
 
 ## Example `group_vars`
 
+### For Server-like
+
+This example is for a server-like environment where the SMB shares are mounted with specific permissions and access controls.
+
 ```yaml
+smb_mount_mode: server_like
+
+smb_shares:
+  - name: "backup_nas"
+    mount_point: "/mnt/backup"
+    share_path: "//192.168.1.100/Backup"
+    username: "backup_user"
+    password: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      36393661...
+    uid: "root"
+    gid: "root"
+    dir_mode: "0755"
+    file_mode: "0644"
+    # allowed_users is omitted here. Access is read-only for everyone based on modes.
+
+  - name: "media_share"
+    domain: "MYDOMAIN"
+    mount_point: "/mnt/media"
+    share_path: "//192.168.1.100/Media"
+    username: "media_user"
+    password: !vault |
+      $ANSIBLE_VAULT;1.1;AES256
+      66393661...
+    uid: "root"
+    gid: "media_share_users"
+    dir_mode: "0770"
+    file_mode: "0660"
+    allowed_users:
+      - alice
+      - bob
+```
+### For Workstation
+
+```yaml
+smb_mount_mode: workstation
+
 smb_shares:
   - name: "backup_nas"
     mount_point: "/mnt/backup"

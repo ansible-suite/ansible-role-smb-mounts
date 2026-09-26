@@ -1,0 +1,12 @@
+smb_mount_mode: server_like
+
+smb_mode_opts:
+  server_like:
+    - _netdev
+    - nofail
+
+  workstation:
+    - _netdev
+    - noauto
+
+smb_shares: []

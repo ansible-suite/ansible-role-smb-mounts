@@ -1,4 +1,12 @@
 ---
+- name: Validate SMB mount mode
+  ansible.builtin.assert:
+    that:
+      - smb_mount_mode in smb_mode_opts
+    fail_msg: >-
+      Invalid smb_mount_mode '{{ smb_mount_mode }}'.
+      Supported modes: {{ smb_mode_opts.keys() | list | join(', ') }}
+
 - name: Install required packages for SMB/CIFS
   ansible.builtin.apt:
     name: cifs-utils
@@ -46,10 +54,10 @@
   ansible.builtin.file:
     path: "{{ item.mount_point }}"
     state: directory
-    mode: '0755'
+    mode: "{{ item.mount_mode | default('0755') }}"
   loop: "{{ smb_shares | default([]) }}"
 
-- name: Mount and configure SMB shares in fstab
+- name: Configure SMB shares in fstab
   ansible.posix.mount:
     path: "{{ item.mount_point }}"
     src: "{{ item.share_path }}"
@@ -62,12 +70,11 @@
             'uid=' ~ (item.uid | default('0')),
             'gid=' ~ (item.group | default(item.gid | default('0'))),
             'dir_mode=' ~ (item.dir_mode | default('0755')),
-            'file_mode=' ~ (item.file_mode | default('0644')),
-            '_netdev',
-            'x-systemd.automount',
-            'nofail'
-          ] + (item.extra_opts | default([]))
+            'file_mode=' ~ (item.file_mode | default('0644'))
+          ]
+          + smb_mode_opts[smb_mount_mode]
+          + (item.extra_opts | default([]))
         ) | join(',')
       }}
-    state: mounted
+    state: present
   loop: "{{ smb_shares | default([]) }}"
